@@ -29,8 +29,8 @@ func New(token string) *Connection {
 	}
 	conn.AddAction("help", "this message", func(e *Event) error {
 		args := e.Command().Args()
-		var doc bytes.Buffer
 		if 0 < len(args) {
+			var doc bytes.Buffer
 			if v, ok := conn.actionMap[args[0]]; ok {
 				if err := v.help.Execute(&doc, e); err != nil {
 					return err
@@ -47,6 +47,7 @@ func New(token string) *Connection {
 
 		m := "command list\n```"
 		for k, v := range conn.actionMap {
+			var doc bytes.Buffer
 			if err := v.help.Execute(&doc, e); err != nil {
 				return err
 			}
