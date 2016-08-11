@@ -1,8 +1,10 @@
 package ape
 
 import (
+	"bytes"
 	"fmt"
 	"regexp"
+	"text/template"
 
 	"github.com/mix3/guiniol"
 	"golang.org/x/net/context"
@@ -11,7 +13,7 @@ import (
 type actionFunc func(*Event) error
 
 type action struct {
-	help string
+	help *template.Template
 	fn   actionFunc
 }
 
@@ -27,10 +29,14 @@ func New(token string) *Connection {
 	}
 	conn.AddAction("help", "this message", func(e *Event) error {
 		args := e.Command().Args()
+		var doc bytes.Buffer
 		if 0 < len(args) {
 			if v, ok := conn.actionMap[args[0]]; ok {
+				if err := v.help.Execute(&doc, e); err != nil {
+					return err
+				}
 				m := "```\n"
-				m += fmt.Sprintf("%s --- %s\n", args[0], v.help)
+				m += fmt.Sprintf("%s --- %s\n", args[0], doc.String())
 				m += "```"
 				e.Reply(m)
 			} else {
@@ -41,7 +47,10 @@ func New(token string) *Connection {
 
 		m := "command list\n```"
 		for k, v := range conn.actionMap {
-			m += fmt.Sprintf("    %s --- %s\n", k, v.help)
+			if err := v.help.Execute(&doc, e); err != nil {
+				return err
+			}
+			m += fmt.Sprintf("    %s --- %s\n", k, doc.String())
 		}
 		m += "```"
 		e.Reply(m)
@@ -51,8 +60,9 @@ func New(token string) *Connection {
 }
 
 func (c *Connection) AddAction(command, help string, fn actionFunc) {
+	tmpl := template.Must(template.New(command).Parse(help))
 	c.actionMap[command] = action{
-		help: help,
+		help: tmpl,
 		fn:   fn,
 	}
 }
